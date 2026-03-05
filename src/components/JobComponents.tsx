@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useEffect } from 'react'
 import { Briefcase, MapPin, Clock, DollarSign, Bookmark, ExternalLink } from 'lucide-react'
 import { Job } from '../data/jobs'
 
@@ -7,12 +7,31 @@ interface JobCardProps {
     onView: (job: Job) => void;
     onSave: (jobId: string) => void;
     isSaved?: boolean;
+    matchScore?: number;
 }
 
-export function JobCard({ job, onView, onSave, isSaved = false }: JobCardProps) {
+export function JobCard({ job, onView, onSave, isSaved = false, matchScore }: JobCardProps) {
     const sourceColor =
         job.source === 'LinkedIn' ? '#0077b5' :
             job.source === 'Naukri' ? '#072e61' : '#003a9b';
+
+    let scoreColor = '#555555';
+    let scoreBg = '#E2E1DD';
+    if (matchScore !== undefined) {
+        if (matchScore >= 80) {
+            scoreColor = '#4C7766';
+            scoreBg = '#EBF2EE';
+        } else if (matchScore >= 60) {
+            scoreColor = '#D97706';
+            scoreBg = '#FEF3C7';
+        } else if (matchScore >= 40) {
+            scoreColor = '#111111';
+            scoreBg = '#EFEFEF';
+        } else {
+            scoreColor = '#777777';
+            scoreBg = '#F7F6F3';
+        }
+    }
 
     return (
         <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-16)' }}>
@@ -21,17 +40,23 @@ export function JobCard({ job, onView, onSave, isSaved = false }: JobCardProps) 
                     <h3 style={{ margin: 0, fontSize: '1.125rem', color: 'var(--text-primary)' }}>{job.title}</h3>
                     <div style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>{job.company}</div>
                 </div>
-                <span
-                    style={{
-                        fontSize: '0.75rem',
-                        padding: '2px 8px',
-                        borderRadius: '12px',
-                        backgroundColor: `${sourceColor}20`,
-                        color: sourceColor,
-                        fontWeight: 600
-                    }}>
-                    {job.source}
-                </span>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    {matchScore !== undefined && (
+                        <span style={{
+                            fontSize: '0.75rem', padding: '2px 8px', borderRadius: '12px',
+                            backgroundColor: scoreBg, color: scoreColor, fontWeight: 700
+                        }}>
+                            {matchScore}% Match
+                        </span>
+                    )}
+                    <span
+                        style={{
+                            fontSize: '0.75rem', padding: '2px 8px', borderRadius: '12px',
+                            backgroundColor: `${sourceColor}20`, color: sourceColor, fontWeight: 600
+                        }}>
+                        {job.source}
+                    </span>
+                </div>
             </div>
 
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-16)', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
@@ -74,7 +99,6 @@ export function JobCard({ job, onView, onSave, isSaved = false }: JobCardProps) 
 }
 
 export function JobModal({ job, onClose }: { job: Job | null, onClose: () => void }) {
-    // Lock body scroll when modal is open
     useEffect(() => {
         if (job) {
             document.body.style.overflow = 'hidden';

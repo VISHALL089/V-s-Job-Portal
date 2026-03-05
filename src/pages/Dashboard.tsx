@@ -1,6 +1,8 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import { JOBS, Job } from '../data/jobs'
 import { JobCard, JobModal } from '../components/JobComponents'
+import { Preferences, calculateMatchScore, extractSalaryNum } from '../utils/scoring'
 
 export default function Dashboard() {
     const [keyword, setKeyword] = useState('');
@@ -9,6 +11,16 @@ export default function Dashboard() {
     const [experience, setExperience] = useState('');
     const [source, setSource] = useState('');
     const [sortBy, setSortBy] = useState('latest');
+    const [showOnlyMatches, setShowOnlyMatches] = useState(false);
+
+    const [prefs, setPrefs] = useState<Preferences | null>(null);
+
+    useEffect(() => {
+        const saved = localStorage.getItem('jobTrackerPreferences');
+        if (saved) {
+            setPrefs(JSON.parse(saved));
+        }
+    }, []);
 
     const [selectedJob, setSelectedJob] = useState<Job | null>(null);
     const [savedJobIds, setSavedJobIds] = useState<string[]>(() => {
@@ -25,8 +37,13 @@ export default function Dashboard() {
         });
     };
 
-    const filteredJobs = useMemo(() => {
-        return JOBS.filter(job => {
+    const processedJobs = useMemo(() => {
+        // Phase 1: Score & Filter
+        let filtered = JOBS.map(job => ({
+            ...job,
+            matchScore: calculateMatchScore(job, prefs)
+        })).filter(job => {
+            // Base UI Filters (AND logic)
             const matchesKeyword = keyword === '' ||
                 job.title.toLowerCase().includes(keyword.toLowerCase()) ||
                 job.company.toLowerCase().includes(keyword.toLowerCase());
@@ -35,14 +52,23 @@ export default function Dashboard() {
             const matchesExp = experience === '' || job.experience === experience;
             const matchesSource = source === '' || job.source === source;
 
-            return matchesKeyword && matchesLocation && matchesMode && matchesExp && matchesSource;
-        }).sort((a, b) => {
+            const passesBaseFilters = matchesKeyword && matchesLocation && matchesMode && matchesExp && matchesSource;
+
+            // Toggle Filter
+            if (showOnlyMatches && prefs) {
+                return passesBaseFilters && job.matchScore >= prefs.minMatchScore;
+            }
+            return passesBaseFilters;
+        });
+
+        // Phase 2: Sort
+        return filtered.sort((a, b) => {
             if (sortBy === 'latest') return a.postedDaysAgo - b.postedDaysAgo;
-            // 'company' sort alphabetical
-            if (sortBy === 'company') return a.company.localeCompare(b.company);
+            if (sortBy === 'score') return b.matchScore - a.matchScore;
+            if (sortBy === 'salary') return extractSalaryNum(b.salaryRange) - extractSalaryNum(a.salaryRange);
             return 0; // Default
         });
-    }, [keyword, locationStr, mode, experience, source, sortBy]);
+    }, [keyword, locationStr, mode, experience, source, sortBy, showOnlyMatches, prefs]);
 
     return (
         <div>
@@ -51,9 +77,18 @@ export default function Dashboard() {
                 <p style={{ margin: 0 }}>Discover your precision-matched opportunities.</p>
             </div>
 
+            {!prefs && (
+                <div className="card" style={{ backgroundColor: '#FEF3C7', borderColor: '#D97706', marginBottom: 'var(--space-24)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ color: '#D97706', fontWeight: 500 }}>
+                        Set your preferences to activate intelligent matching.
+                    </div>
+                    <Link to="/settings" className="btn btn-primary" style={{ backgroundColor: '#D97706', color: '#fff' }}>Go to Settings</Link>
+                </div>
+            )}
+
             {/* FILTER BAR UI */}
             <div className="card" style={{ padding: 'var(--space-16)', marginBottom: 'var(--space-24)' }}>
-                <div style={{ display: 'flex', gap: 'var(--space-16)', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                <div style={{ display: 'flex', gap: 'var(--space-16)', flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 'var(--space-16)' }}>
                     <div style={{ flex: '1 1 200px' }}>
                         <label className="input-label" htmlFor="search-keyword">Keyword Search</label>
                         <input id="search-keyword" className="input-field" placeholder="Job title or company" value={keyword} onChange={e => setKeyword(e.target.value)} />
@@ -94,19 +129,34 @@ export default function Dashboard() {
                         <label className="input-label" htmlFor="sort-filter">Sort</label>
                         <select id="sort-filter" className="input-field" value={sortBy} onChange={e => setSortBy(e.target.value)} style={{ appearance: 'auto' }}>
                             <option value="latest">Latest First</option>
-                            <option value="company">Company</option>
+                            <option value="score">Match Score</option>
+                            <option value="salary">Salary (High to Low)</option>
                         </select>
                     </div>
                 </div>
+
+                {prefs && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-8)', borderTop: '1px solid var(--border-color)', paddingTop: 'var(--space-16)' }}>
+                        <label className="checkbox-item" style={{ fontSize: '1rem', fontWeight: 500, color: 'var(--text-primary)' }}>
+                            <input
+                                type="checkbox"
+                                checked={showOnlyMatches}
+                                onChange={e => setShowOnlyMatches(e.target.checked)}
+                                style={{ width: '18px', height: '18px' }}
+                            />
+                            Show only jobs above my threshold ({prefs.minMatchScore}%)
+                        </label>
+                    </div>
+                )}
             </div>
 
             {/* RENDER JOBS */}
-            {filteredJobs.length === 0 ? (
+            {processedJobs.length === 0 ? (
                 <div className="empty-state">
                     <div style={{ fontSize: '1.25rem', fontWeight: 500, color: 'var(--text-primary)', marginBottom: 'var(--space-8)' }}>
-                        No matching jobs found.
+                        No roles match your criteria.
                     </div>
-                    <div>Try adjusting your filters to see more opportunities.</div>
+                    <div>Adjust filters or lower threshold.</div>
                 </div>
             ) : (
                 <div style={{
@@ -115,10 +165,11 @@ export default function Dashboard() {
                     gap: 'var(--space-24)',
                     alignItems: 'stretch'
                 }}>
-                    {filteredJobs.map(job => (
+                    {processedJobs.map(job => (
                         <JobCard
                             key={job.id}
                             job={job}
+                            matchScore={job.matchScore}
                             onView={setSelectedJob}
                             onSave={toggleSaveJob}
                             isSaved={savedJobIds.includes(job.id)}
