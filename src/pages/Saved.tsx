@@ -1,10 +1,17 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Bookmark } from 'lucide-react'
 import { JOBS, Job } from '../data/jobs'
 import { JobCard, JobModal } from '../components/JobComponents'
+import { JobStatus, StatusMap, getStatusMap, saveStatusMap } from '../utils/status'
 
 export default function Saved() {
     const [selectedJob, setSelectedJob] = useState<Job | null>(null);
+    const [statusMap, setStatusMapState] = useState<StatusMap>({});
+    const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+    useEffect(() => {
+        setStatusMapState(getStatusMap());
+    }, []);
 
     // State initialization matching Dashboard
     const [savedJobIds, setSavedJobIds] = useState<string[]>(() => {
@@ -21,9 +28,31 @@ export default function Saved() {
         });
     };
 
+    const handleStatusChange = (jobId: string, status: JobStatus) => {
+        const updatedMap = {
+            ...statusMap,
+            [jobId]: { status, dateChanged: new Date().toISOString() }
+        };
+
+        if (status === 'Not Applied') {
+            delete updatedMap[jobId];
+        }
+
+        setStatusMapState(updatedMap);
+        saveStatusMap(updatedMap);
+
+        if (status !== 'Not Applied') {
+            setToastMessage(`Status updated: ${status}`);
+            setTimeout(() => setToastMessage(null), 3000);
+        }
+    };
+
     const savedJobs = useMemo(() => {
-        return JOBS.filter(job => savedJobIds.includes(job.id));
-    }, [savedJobIds]);
+        return JOBS.filter(job => savedJobIds.includes(job.id)).map(job => ({
+            ...job,
+            currentStatus: statusMap[job.id]?.status || 'Not Applied'
+        }));
+    }, [savedJobIds, statusMap]);
 
     return (
         <div>
@@ -51,6 +80,8 @@ export default function Saved() {
                         <JobCard
                             key={job.id}
                             job={job}
+                            status={job.currentStatus as JobStatus}
+                            onStatusChange={handleStatusChange}
                             onView={setSelectedJob}
                             onSave={toggleSaveJob}
                             isSaved={true}
@@ -61,6 +92,25 @@ export default function Saved() {
 
             {/* MODAL */}
             <JobModal job={selectedJob} onClose={() => setSelectedJob(null)} />
+
+            {/* TOAST */}
+            {toastMessage && (
+                <div style={{
+                    position: 'fixed',
+                    bottom: '24px',
+                    right: '24px',
+                    backgroundColor: '#111',
+                    color: '#fff',
+                    padding: '12px 24px',
+                    borderRadius: '4px',
+                    boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+                    zIndex: 100,
+                    fontWeight: 500,
+                    animation: 'fadein 0.3s'
+                }}>
+                    {toastMessage}
+                </div>
+            )}
         </div>
     )
 }

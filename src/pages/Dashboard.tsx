@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { JOBS, Job } from '../data/jobs'
 import { JobCard, JobModal } from '../components/JobComponents'
 import { Preferences, calculateMatchScore, extractSalaryNum } from '../utils/scoring'
+import { JobStatus, StatusMap, getStatusMap, saveStatusMap } from '../utils/status'
 
 export default function Dashboard() {
     const [keyword, setKeyword] = useState('');
@@ -10,16 +11,21 @@ export default function Dashboard() {
     const [mode, setMode] = useState('');
     const [experience, setExperience] = useState('');
     const [source, setSource] = useState('');
+    const [statusFilter, setStatusFilter] = useState('');
     const [sortBy, setSortBy] = useState('latest');
     const [showOnlyMatches, setShowOnlyMatches] = useState(false);
 
     const [prefs, setPrefs] = useState<Preferences | null>(null);
+    const [statusMap, setStatusMapState] = useState<StatusMap>({});
+
+    const [toastMessage, setToastMessage] = useState<string | null>(null);
 
     useEffect(() => {
         const saved = localStorage.getItem('jobTrackerPreferences');
         if (saved) {
             setPrefs(JSON.parse(saved));
         }
+        setStatusMapState(getStatusMap());
     }, []);
 
     const [selectedJob, setSelectedJob] = useState<Job | null>(null);
@@ -37,11 +43,33 @@ export default function Dashboard() {
         });
     };
 
+    const handleStatusChange = (jobId: string, status: JobStatus) => {
+        const updatedMap = {
+            ...statusMap,
+            [jobId]: { status, dateChanged: new Date().toISOString() }
+        };
+
+        // If resetting to Not Applied, we can either delete or persist
+        if (status === 'Not Applied') {
+            delete updatedMap[jobId];
+        }
+
+        setStatusMapState(updatedMap);
+        saveStatusMap(updatedMap);
+
+        // Toast Logic
+        if (status !== 'Not Applied') {
+            setToastMessage(`Status updated: ${status}`);
+            setTimeout(() => setToastMessage(null), 3000);
+        }
+    };
+
     const processedJobs = useMemo(() => {
         // Phase 1: Score & Filter
         let filtered = JOBS.map(job => ({
             ...job,
-            matchScore: calculateMatchScore(job, prefs)
+            matchScore: calculateMatchScore(job, prefs),
+            currentStatus: statusMap[job.id]?.status || 'Not Applied'
         })).filter(job => {
             // Base UI Filters (AND logic)
             const matchesKeyword = keyword === '' ||
@@ -51,8 +79,9 @@ export default function Dashboard() {
             const matchesMode = mode === '' || job.mode === mode;
             const matchesExp = experience === '' || job.experience === experience;
             const matchesSource = source === '' || job.source === source;
+            const matchesStatus = statusFilter === '' || job.currentStatus === statusFilter;
 
-            const passesBaseFilters = matchesKeyword && matchesLocation && matchesMode && matchesExp && matchesSource;
+            const passesBaseFilters = matchesKeyword && matchesLocation && matchesMode && matchesExp && matchesSource && matchesStatus;
 
             // Toggle Filter
             if (showOnlyMatches && prefs) {
@@ -68,7 +97,7 @@ export default function Dashboard() {
             if (sortBy === 'salary') return extractSalaryNum(b.salaryRange) - extractSalaryNum(a.salaryRange);
             return 0; // Default
         });
-    }, [keyword, locationStr, mode, experience, source, sortBy, showOnlyMatches, prefs]);
+    }, [keyword, locationStr, mode, experience, source, statusFilter, sortBy, showOnlyMatches, prefs, statusMap]);
 
     return (
         <div>
@@ -126,6 +155,16 @@ export default function Dashboard() {
                         </select>
                     </div>
                     <div style={{ flex: '1 1 120px' }}>
+                        <label className="input-label" htmlFor="status-filter">Status</label>
+                        <select id="status-filter" className="input-field" value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={{ appearance: 'auto' }}>
+                            <option value="">All</option>
+                            <option value="Not Applied">Not Applied</option>
+                            <option value="Applied">Applied</option>
+                            <option value="Rejected">Rejected</option>
+                            <option value="Selected">Selected</option>
+                        </select>
+                    </div>
+                    <div style={{ flex: '1 1 120px' }}>
                         <label className="input-label" htmlFor="sort-filter">Sort</label>
                         <select id="sort-filter" className="input-field" value={sortBy} onChange={e => setSortBy(e.target.value)} style={{ appearance: 'auto' }}>
                             <option value="latest">Latest First</option>
@@ -170,6 +209,8 @@ export default function Dashboard() {
                             key={job.id}
                             job={job}
                             matchScore={job.matchScore}
+                            status={job.currentStatus as JobStatus}
+                            onStatusChange={handleStatusChange}
                             onView={setSelectedJob}
                             onSave={toggleSaveJob}
                             isSaved={savedJobIds.includes(job.id)}
@@ -180,6 +221,25 @@ export default function Dashboard() {
 
             {/* MODAL */}
             <JobModal job={selectedJob} onClose={() => setSelectedJob(null)} />
+
+            {/* TOAST */}
+            {toastMessage && (
+                <div style={{
+                    position: 'fixed',
+                    bottom: '24px',
+                    right: '24px',
+                    backgroundColor: '#111',
+                    color: '#fff',
+                    padding: '12px 24px',
+                    borderRadius: '4px',
+                    boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+                    zIndex: 100,
+                    fontWeight: 500,
+                    animation: 'fadein 0.3s'
+                }}>
+                    {toastMessage}
+                </div>
+            )}
         </div>
     )
 }

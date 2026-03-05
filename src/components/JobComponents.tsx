@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { Briefcase, MapPin, Clock, DollarSign, Bookmark, ExternalLink } from 'lucide-react'
 import { Job } from '../data/jobs'
+import { JobStatus } from '../utils/status'
 
 interface JobCardProps {
     job: Job;
@@ -8,9 +9,11 @@ interface JobCardProps {
     onSave: (jobId: string) => void;
     isSaved?: boolean;
     matchScore?: number;
+    status: JobStatus;
+    onStatusChange: (jobId: string, status: JobStatus) => void;
 }
 
-export function JobCard({ job, onView, onSave, isSaved = false, matchScore }: JobCardProps) {
+export function JobCard({ job, onView, onSave, isSaved = false, matchScore, status, onStatusChange }: JobCardProps) {
     const sourceColor =
         job.source === 'LinkedIn' ? '#0077b5' :
             job.source === 'Naukri' ? '#072e61' : '#003a9b';
@@ -31,6 +34,19 @@ export function JobCard({ job, onView, onSave, isSaved = false, matchScore }: Jo
             scoreColor = '#777777';
             scoreBg = '#F7F6F3';
         }
+    }
+
+    let statusColor = '#111111';
+    let statusBg = '#EFEFEF';
+    if (status === 'Applied') {
+        statusColor = '#1e3a8a'; // Blue
+        statusBg = '#DBEAFE';
+    } else if (status === 'Rejected') {
+        statusColor = '#991b1b'; // Red
+        statusBg = '#FEE2E2';
+    } else if (status === 'Selected') {
+        statusColor = '#065f46'; // Green
+        statusBg = '#D1FAE5';
     }
 
     return (
@@ -74,24 +90,40 @@ export function JobCard({ job, onView, onSave, isSaved = false, matchScore }: Jo
                 </div>
             </div>
 
-            <div style={{ display: 'flex', gap: 'var(--space-8)', marginTop: 'auto', paddingTop: 'var(--space-16)' }}>
-                <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => onView(job)}>
-                    View
+            <div style={{ display: 'flex', gap: 'var(--space-8)', alignItems: 'center', marginTop: 'auto', paddingTop: 'var(--space-16)' }}>
+
+                {/* Status Dropdown */}
+                <select
+                    className="input-field"
+                    style={{ flex: 1, appearance: 'auto', padding: '10px 12px', fontSize: '0.875rem', fontWeight: 600, backgroundColor: statusBg, color: statusColor, borderColor: statusBg }}
+                    value={status}
+                    onChange={(e) => onStatusChange(job.id, e.target.value as JobStatus)}
+                >
+                    <option value="Not Applied" style={{ background: '#fff', color: '#111' }}>Not Applied</option>
+                    <option value="Applied" style={{ background: '#fff', color: '#1e3a8a' }}>Applied</option>
+                    <option value="Rejected" style={{ background: '#fff', color: '#991b1b' }}>Rejected</option>
+                    <option value="Selected" style={{ background: '#fff', color: '#065f46' }}>Selected</option>
+                </select>
+
+                <button className="btn btn-secondary" style={{ padding: '10px' }} onClick={() => onView(job)} title="View Detail">
+                    <Briefcase size={16} />
                 </button>
+
                 <button
                     className="btn btn-secondary"
                     style={{
-                        flex: 1,
+                        padding: '10px',
                         borderColor: isSaved ? 'var(--accent-color)' : '',
                         color: isSaved ? 'var(--accent-color)' : ''
                     }}
                     onClick={() => onSave(job.id)}
+                    title="Save Job"
                 >
                     <Bookmark size={16} fill={isSaved ? 'var(--accent-color)' : 'none'} color={isSaved ? 'var(--accent-color)' : 'currentColor'} />
-                    {isSaved ? 'Saved' : 'Save'}
                 </button>
-                <a href={job.applyUrl} target="_blank" rel="noopener noreferrer" className="btn btn-primary" style={{ flex: 1 }}>
-                    Apply <ExternalLink size={16} />
+
+                <a href={job.applyUrl} target="_blank" rel="noopener noreferrer" className="btn btn-primary" title="Apply External" style={{ padding: '10px' }}>
+                    <ExternalLink size={16} />
                 </a>
             </div>
         </div>
