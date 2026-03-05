@@ -2,6 +2,14 @@ import { useState } from 'react'
 import { BrowserRouter, Routes, Route, NavLink, Outlet } from 'react-router-dom'
 import { Menu, X } from 'lucide-react'
 
+// Page Components
+import Home from './pages/Home'
+import Dashboard from './pages/Dashboard'
+import Settings from './pages/Settings'
+import Saved from './pages/Saved'
+import Digest from './pages/Digest'
+import Proof from './pages/Proof'
+
 // Layout Component holding Top Nav
 const BaseLayout = () => {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
@@ -74,29 +82,24 @@ const BaseLayout = () => {
     )
 }
 
-// Reusable Placeholder Page Component
-const PlaceholderPage = ({ title }: { title: string }) => {
-    return (
-        <div className="placeholder-page">
-            <h1 className="placeholder-heading">{title}</h1>
-            <p className="placeholder-subtext">This section will be built in the next step.</p>
-        </div>
-    )
-}
-
 function App() {
     return (
         <BrowserRouter>
             <Routes>
                 <Route path="/" element={<BaseLayout />}>
-                    <Route index element={<PlaceholderPage title="Home" />} />
-                    <Route path="dashboard" element={<PlaceholderPage title="Dashboard" />} />
-                    <Route path="saved" element={<PlaceholderPage title="Saved Jobs" />} />
-                    <Route path="digest" element={<PlaceholderPage title="Daily Digest" />} />
-                    <Route path="settings" element={<PlaceholderPage title="Settings" />} />
-                    <Route path="proof" element={<PlaceholderPage title="System Proof" />} />
+                    <Route index element={<Home />} />
+                    <Route path="dashboard" element={<Dashboard />} />
+                    <Route path="saved" element={<Saved />} />
+                    <Route path="digest" element={<Digest />} />
+                    <Route path="settings" element={<Settings />} />
+                    <Route path="proof" element={<Proof />} />
+
                     {/* Catch-all for unmatched routes */}
-                    <Route path="*" element={<PlaceholderPage title="404 - Not Found" />} />
+                    <Route path="*" element={
+                        <div style={{ textAlign: 'center', paddingTop: 'var(--space-64)' }}>
+                            <h1>404 - Not Found</h1>
+                        </div>
+                    } />
                 </Route>
             </Routes>
         </BrowserRouter>
