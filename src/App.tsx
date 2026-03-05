@@ -9,6 +9,8 @@ import Settings from './pages/Settings'
 import Saved from './pages/Saved'
 import Digest from './pages/Digest'
 import Proof from './pages/Proof'
+import TestChecklist from './pages/TestChecklist'
+import Ship from './pages/Ship'
 
 // Layout Component holding Top Nav
 const BaseLayout = () => {
@@ -22,12 +24,15 @@ const BaseLayout = () => {
         setIsMobileMenuOpen(false)
     }
 
+    // Determine NavLinks 
     const navLinks = [
         { name: 'Dashboard', path: '/dashboard' },
         { name: 'Saved', path: '/saved' },
         { name: 'Digest', path: '/digest' },
         { name: 'Settings', path: '/settings' },
         { name: 'Proof', path: '/proof' },
+        { name: 'Test', path: '/jt/07-test' },
+        { name: 'Ship', path: '/jt/08-ship' },
     ]
 
     return (
@@ -93,6 +98,8 @@ function App() {
                     <Route path="digest" element={<Digest />} />
                     <Route path="settings" element={<Settings />} />
                     <Route path="proof" element={<Proof />} />
+                    <Route path="jt/07-test" element={<TestChecklist />} />
+                    <Route path="jt/08-ship" element={<Ship />} />
 
                     {/* Catch-all for unmatched routes */}
                     <Route path="*" element={
