@@ -193,7 +193,7 @@ export default function Dashboard() {
             {processedJobs.length === 0 ? (
                 <div className="empty-state">
                     <div style={{ fontSize: '1.25rem', fontWeight: 500, color: 'var(--text-primary)', marginBottom: 'var(--space-8)' }}>
-                        No roles match your criteria.
+                        No jobs yet
                     </div>
                     <div>Adjust filters or lower threshold.</div>
                 </div>
